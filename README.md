@@ -4,6 +4,8 @@ Final Fantasy VII Graphics Extender
 ff7gx is a mod for the Steam version of Final Fantasy VII to slightly improve its horribly outdated look. The mod is currently
 a bunch of glitchy hacks and exploratory coding, so the game will be mostly unplayable.
 
+![Comparison](img/comparison.png)
+
 ## Building
 The build is tested only on Visual Studio 2017 Community. The build should work out of the box by opening `ff7gx.sln` and
 building the `Debug (x86)` configuration.
