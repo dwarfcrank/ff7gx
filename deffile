@@ -1,0 +1,7 @@
+LIBRARY AF3DN.P
+EXPORTS
+    dotemuRegCloseKey
+    dotemuRegOpenKeyExA
+    dotemuRegDeleteValueA
+    dotemuRegQueryValueExA
+    dotemuRegSetValueExA
