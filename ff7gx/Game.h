@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+class Module;
+
 namespace FF7
 {
     namespace Offsets
@@ -13,6 +15,8 @@ namespace FF7
         const u32 RenderHeight = 0x2bc9c;
         const u32 D3DDevice = 0x2bcc4;
         const u32 DrawFunction = 0xb6a0;
+        const u32 GetGameState = 0x1330;
+        const u32 DebugOverlayFlag = 0x2bc80;
     }
 
     enum DrawType : u32
@@ -21,11 +25,15 @@ namespace FF7
         Ortho = 3           // ortho_matrix is used in the vertex shader
     };
 
+    struct GameContext;
+
     struct GameState
     {
-        u32 unknown1;
+        u32 index;
         const char* name;
         u32 id;
+        u32 unknown;
+        u32 (__cdecl *FuncPtr)(GameContext*);
     };
 
     struct Vertex
@@ -98,6 +106,33 @@ namespace FF7
         /* 0xE4 */ u32 (__cdecl *GfxFn_E4)(u32 a0, u32 a1);
         /* 0xE8 */ u32 (__cdecl *GfxFn_E8)(u32 a0, u32 a1);
         /* 0xEC */ u32 dwordEC;
+    };
+
+    // Accessor class for game internal data and functions, to make
+    // the distinction between mod and game code more explicit
+    class GameInternals
+    {
+    public:
+        GameInternals(Module& module);
+        ~GameInternals() = default;
+
+        struct IDirect3DDevice9* GetD3DDevice();
+        void GetRenderDimensions(float* width, float* height) const;
+        void Draw(D3DPRIMITIVETYPE primType, u32 drawType, const Vertex* vertices,
+            u32 vertexBufferSize, const u16* indices, u32 vertexCount, u32 a7, u32 scissor);
+
+        const GameState* GetGameState() const;
+
+        void SetDebugLogFlag(u32 value);
+        void SetDebugOverlayFlag(u32 value);
+        void SetTextureFilteringFlag(u32 value);
+
+    private:
+        Module& m_module;
+
+        const GameState* (__cdecl *m_getGameState)();
+        void (__cdecl *m_draw)(D3DPRIMITIVETYPE primType, u32 drawType, const Vertex* vertices,
+            u32 vertexBufferSize, const u16* indices, u32 vertexCount, u32 a7, u32 scissor);
     };
 }
 

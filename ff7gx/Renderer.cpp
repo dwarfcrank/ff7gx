@@ -123,11 +123,12 @@ void Renderer::InitProjectionMatrix()
 
 Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback) :
     m_originalDll(module),
+    m_internals(module),
     m_shutdownCallback(shutdownCallback)
 {
     std::memcpy(&m_originalContext, context, sizeof(FF7::GfxContext));
 
-    m_d3dDevice.Attach(*m_originalDll.OffsetToPtr<IDirect3DDevice9**>(FF7::Offsets::D3DDevice));
+    m_d3dDevice.Attach(m_internals.GetD3DDevice());
 
     // 3D models etc. are drawn directly to the backbuffer, so save it here to avoid
     // having to call GetRenderTarget() before switcing render targets
@@ -152,8 +153,6 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
     context->Shutdown = Shutdown;
     context->Clear = &MethodWrapper<u32, u32, u32>::Func<&Renderer::Clear>;
     context->ClearAll = &MethodWrapper<u32>::Func<&Renderer::ClearAll>;
-
-    Draw = m_originalDll.OffsetToPtr<decltype(Draw)>(FF7::Offsets::DrawFunction);
 
     // Patch DrawTilesImpl to call DrawHook to transform vertices before drawing them
     auto drawHook =
@@ -197,15 +196,10 @@ void Renderer::DrawHook(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vert
         transformed[i].y *= 0.5f;
     }
 
-    Draw(primType, drawType, transformed.data(), vertexBufferSize, indices, vertexCount, a7, scissor);
+    m_internals.Draw(primType, drawType, transformed.data(), vertexBufferSize, indices, vertexCount, a7, scissor);
 }
 
-void Renderer::SetTextureFilteringFlag(bool value)
-{
-    *m_originalDll.OffsetToPtr<u32*>(FF7::Offsets::TextureFilteringFlag) = value ? 1 : 0;
-}
-
-void Renderer::SetTextureFlag(bool value)
+void Renderer::SetShaderTextureFlag(bool value)
 {
     float v[4] = { value ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f };
 
@@ -217,8 +211,10 @@ u32 Renderer::EndFrame(u32 a0)
 {
     auto _ = ScopedD3DEvent::Begin(L"EndFrame_hook(%p)", a0);
 
-    auto width = static_cast<float>(*m_originalDll.OffsetToPtr<u32*>(FF7::Offsets::RenderWidth)) / 2;
-    auto height = static_cast<float>(*m_originalDll.OffsetToPtr<u32*>(FF7::Offsets::RenderHeight)) / 2;
+    float width, height;
+    m_internals.GetRenderDimensions(&width, &height);
+    width /= 2.0f;
+    height /= 2.0f;
 
     const std::array<u16, 6> indices{ {
             3, 0, 2, 0, 1, 2
@@ -250,11 +246,11 @@ u32 Renderer::EndFrame(u32 a0)
     m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
     m_d3dDevice->SetTexture(0, m_backgroundTexture.Get());
 
-    SetTextureFilteringFlag(true);
-    SetTextureFlag(true);
+    m_internals.SetTextureFilteringFlag(1);
+    SetShaderTextureFlag(true);
 
     m_d3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
-    Draw(D3DPT_TRIANGLELIST, FF7::DrawType::Ortho, vertices.data(), vertices.size(), indices.data(), indices.size(), 0, 0);
+    m_internals.Draw(D3DPT_TRIANGLELIST, FF7::DrawType::Ortho, vertices.data(), vertices.size(), indices.data(), indices.size(), 0, 0);
     m_d3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
 
     return m_originalContext.EndFrame(a0);

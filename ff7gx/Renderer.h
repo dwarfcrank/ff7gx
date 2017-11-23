@@ -41,7 +41,7 @@ private:
     ~Renderer() = default;
 
     // Sets the flag used by the pixel shader to determine whether to sample from a texture.
-    void SetTextureFlag(bool value);
+    void SetShaderTextureFlag(bool value);
 
     // Sets the flag used by Draw() to determine whether to enable linear filtering or not.
     void SetTextureFilteringFlag(bool value);
@@ -54,10 +54,7 @@ private:
     // Game internals
     class Module& m_originalDll;
     FF7::GfxContext m_originalContext;
-
-    // Original drawing function, see FF7::DrawType for the values of drawType
-    void (__cdecl *Draw)(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vertex* vertices,
-        u32 vertexBufferSize, const u16* indices, u32 vertexCount, u32 a7, u32 scissor);
+    FF7::GameInternals m_internals;
 
     // D3D resources
     template<typename T>

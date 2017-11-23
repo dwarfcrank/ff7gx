@@ -164,6 +164,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Config.cpp" />
+    <ClCompile Include="GameInternals.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="DllMain.cpp" />
     <ClCompile Include="Module.cpp" />

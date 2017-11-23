@@ -98,7 +98,8 @@ static void DoInit()
     DebugLog("Init done");
 
     // Enable debug logging
-    *g_originalDll.OffsetToPtr<u32*>(FF7::Offsets::DebugLogFlag) = 1;
+    FF7::GameInternals internals(g_originalDll);
+    internals.SetDebugLogFlag(1);
 
     g_initialized = true;
 }
@@ -128,6 +129,9 @@ DLLEXPORT FF7::GfxContext* __cdecl new_dll_graphics_driver(u32 a0)
 
         FreeLibrary(g_originalDll.GetHandle());
     });
+
+    FF7::GameInternals internals(g_originalDll);
+    internals.SetDebugOverlayFlag(1);
 
     return context;
 }
