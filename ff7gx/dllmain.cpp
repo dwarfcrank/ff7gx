@@ -106,8 +106,7 @@ DLLEXPORT FF7::GfxContext* __cdecl new_dll_graphics_driver(u32 a0)
 
     auto function = reinterpret_cast<fn_new_dll_graphics_driver>(g_originalDll.GetExport(__func__));
     auto context = function(a0);
-
-    Renderer::Initialize(g_originalDll, context, [&]() {
+    auto renderer = new Renderer(g_originalDll, context, [&]() {
         if (g_fridaDll) {
             FreeLibrary(g_fridaDll);
         }
@@ -118,6 +117,8 @@ DLLEXPORT FF7::GfxContext* __cdecl new_dll_graphics_driver(u32 a0)
 
         FreeLibrary(g_originalDll.GetHandle());
     });
+
+    context->rendererInstance = renderer;
 
     FF7::GameInternals internals(g_originalDll);
     internals.SetDebugOverlayFlag(1);

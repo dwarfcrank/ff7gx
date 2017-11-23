@@ -59,7 +59,7 @@ struct MethodWrapper
     template<RendererMethodPtr<TResult, TArgs...> Method>
     static TResult __cdecl Func(TArgs... args)
     {
-        return (Renderer::GetInstance()->*Method)(args...);
+        return (FF7::GetGfxContext()->rendererInstance->*Method)(args...);
     }
 };
 
@@ -69,32 +69,17 @@ static void SetD3DResourceName(IDirect3DResource9* resource, const char* name)
     resource->SetPrivateData(WKPDID_D3DDebugObjectName, name, strlen(name), 0);
 }
 
-std::unique_ptr<Renderer> Renderer::s_instance = nullptr;
-
-Renderer* Renderer::GetInstance()
-{
-    assert(s_instance);
-    return s_instance.get();
-}
-
-Renderer* Renderer::Initialize(Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback)
-{
-    assert(!s_instance);
-    s_instance.reset(new Renderer(module, context, shutdownCallback));
-
-    return s_instance.get();
-}
-
 u32 Renderer::Shutdown(u32 a0)
 {
     // TODO: Decide on shutdown order.
     // Currently it's original DLL shutdown -> Renderer shutdown -> Shutdown callback, which makes sense
     // when running with e.g. apitrace which isn't safe to unload before all D3D related stuff is destroyed.
-    auto origShutdown = GetInstance()->m_originalContext.Shutdown;
+    auto instance = FF7::GetGfxContext()->rendererInstance;
+    auto origShutdown = instance->m_originalContext.Shutdown;
     auto ret = origShutdown(a0);
-    auto shutdownCallback = GetInstance()->m_shutdownCallback;
+    auto shutdownCallback = instance->m_shutdownCallback;
 
-    s_instance.reset();
+    delete instance;
 
     if (shutdownCallback) {
         shutdownCallback();

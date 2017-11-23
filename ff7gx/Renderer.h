@@ -13,9 +13,7 @@ class Renderer
 public:
     using ShutdownCallback = std::function<void()>;
 
-    // The callback passed here is run *after* the renderer instance has been destroyed.
-    static Renderer* Initialize(class Module& Module, FF7::GfxContext* context, ShutdownCallback shutdownCallback = nullptr);
-    static Renderer* GetInstance();
+    Renderer(class Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback = nullptr);
 
     u32 EndFrame(u32 a0);
     u32 Clear(u32 clearRenderTarget, u32 clearDepthBuffer);
@@ -33,13 +31,6 @@ public:
     Renderer(Renderer&&) = delete;
 
 private:
-    // std::default_delete needs to be a friend to access the private destructor
-    friend struct std::default_delete<Renderer>;
-    static std::unique_ptr<Renderer> s_instance;
-
-    Renderer(class Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback = nullptr);
-    ~Renderer() = default;
-
     // Sets the flag used by the pixel shader to determine whether to sample from a texture.
     void SetShaderTextureFlag(bool value);
 

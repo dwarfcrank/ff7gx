@@ -3,11 +3,17 @@
 #include "common.h"
 
 class Module;
+class Renderer;
 
 namespace FF7
 {
     namespace Offsets
     {
+        // Specific to ff7_en.exe
+        // The base address of the game exe never changes, so these can be directly cast to pointers.
+        const u32 GameContextPtr = 0xdb2bb8;
+
+        // Specific to af3dn.p
         const u32 TextureFilteringFlag = 0x2d280;
         const u32 TileDrawCall = 0x4a48;
         const u32 DebugLogFlag = 0x2ae7c;
@@ -25,6 +31,7 @@ namespace FF7
         Ortho = 3           // ortho_matrix is used in the vertex shader
     };
 
+    // TODO: Fill in the huge context struct.
     struct GameContext;
 
     struct GameState
@@ -55,13 +62,17 @@ namespace FF7
         /* 0x18 */ u32 (__cdecl *ClearAll)();
         /* 0x1C */ u32 dword1C;
         /* 0x20 */ u32 dword20;
-        /* 0x24 */ u32 dword24;
+
+        // These fields don't seem to be used for anything, so store a Renderer instance here.
+        // Probably should be the first place to check when inexplicable crashes happen.
+        /* 0x24 */ Renderer* rendererInstance;
         /* 0x28 */ u32 dword28;
         /* 0x2C */ u32 dword2C;
         /* 0x30 */ u32 dword30;
         /* 0x34 */ u32 dword34;
         /* 0x38 */ u32 dword38;
         /* 0x3C */ u32 dword3C;
+
         /* 0x40 */ u32 dword40;
         /* 0x44 */ u32 dword44;
         /* 0x48 */ u32 dword48;
@@ -107,6 +118,9 @@ namespace FF7
         /* 0xE8 */ u32 (__cdecl *GfxFn_E8)(u32 a0, u32 a1);
         /* 0xEC */ u32 dwordEC;
     };
+
+    GameContext* GetGameContext();
+    GfxContext* GetGfxContext();
 
     // Accessor class for game internal data and functions, to make
     // the distinction between mod and game code more explicit
