@@ -34,16 +34,12 @@ namespace FF7
     struct GfxContext;
 }
 
-struct OriginalExports
-{
-    struct FF7::GfxContext* (__cdecl *new_dll_graphics_driver)(u32);
-    u32 (__stdcall *dotemuRegOpenKeyExA)(u32, u32, u32, u32, u32);
-    u32 (__stdcall *dotemuRegQueryValueExA)(u32, const char*, u32, u32, void*, u32*);
-    u32 (__stdcall *dotemuRegSetValueExA)(u32, u32, u32, u32, u32, u32);
-};
+using fn_new_dll_graphics_driver = struct FF7::GfxContext* (__cdecl *)(u32);
+using fn_dotemuRegOpenKeyExA = u32 (__stdcall *)(u32, u32, u32, u32, u32);
+using fn_dotemuRegQueryValueExA = u32 (__stdcall *)(u32, const char*, u32, u32, void*, u32*);
+using fn_dotemuRegSetValueExA = u32 (__stdcall *)(u32, u32, u32, u32, u32, u32);
 
 static Module g_originalDll;
-static OriginalExports g_originalExports;
 
 static bool g_initialized = false;
 static HMODULE g_fridaDll = nullptr;
@@ -86,15 +82,6 @@ static void DoInit()
         DebugLog("Loaded apitrace at %p", g_apitraceDll);
     }
 
-    auto module = g_originalDll.GetHandle();
-
-    g_originalExports = {
-        reinterpret_cast<decltype(OriginalExports::new_dll_graphics_driver)>(GetProcAddress(module, "new_dll_graphics_driver")),
-        reinterpret_cast<decltype(OriginalExports::dotemuRegOpenKeyExA)>(GetProcAddress(module, "dotemuRegOpenKeyExA")),
-        reinterpret_cast<decltype(OriginalExports::dotemuRegQueryValueExA)>(GetProcAddress(module, "dotemuRegQueryValueExA")),
-        reinterpret_cast<decltype(OriginalExports::dotemuRegSetValueExA)>(GetProcAddress(module, "dotemuRegSetValueExA")),
-    };
-
     DebugLog("Init done");
 
     // Enable debug logging
@@ -116,7 +103,9 @@ void Initialize()
 DLLEXPORT FF7::GfxContext* __cdecl new_dll_graphics_driver(u32 a0)
 {
     Initialize();
-    auto context = g_originalExports.new_dll_graphics_driver(a0);
+
+    auto function = reinterpret_cast<fn_new_dll_graphics_driver>(g_originalDll.GetExport(__func__));
+    auto context = function(a0);
 
     Renderer::Initialize(g_originalDll, context, [&]() {
         if (g_fridaDll) {
@@ -145,7 +134,8 @@ DLLEXPORT u32 __stdcall dotemuRegCloseKey(u32)
 DLLEXPORT u32 __stdcall dotemuRegOpenKeyExA(u32 a0, u32 a1, u32 a2, u32 a3, u32 a4)
 {
     Initialize();
-    return g_originalExports.dotemuRegOpenKeyExA(a0, a1, a2, a3, a4);
+    auto function = reinterpret_cast<fn_dotemuRegOpenKeyExA>(g_originalDll.GetExport(__func__));
+    return function(a0, a1, a2, a3, a4);
 }
 
 DLLEXPORT u32 __stdcall dotemuRegDeleteValueA(u32, u32)
@@ -157,7 +147,8 @@ DLLEXPORT u32 __stdcall dotemuRegDeleteValueA(u32, u32)
 DLLEXPORT u32 __stdcall dotemuRegSetValueExA(u32 a0, u32 a1, u32 a2, u32 a3, u32 a4, u32 a5)
 {
     Initialize();
-    return g_originalExports.dotemuRegSetValueExA(a0, a1, a2, a3, a4, a5);
+    auto function = reinterpret_cast<fn_dotemuRegSetValueExA>(g_originalDll.GetExport(__func__));
+    return function(a0, a1, a2, a3, a4, a5);
 }
 
 DLLEXPORT u32 __stdcall dotemuRegQueryValueExA(u32 a0, const char* valueName, u32 a2, u32 a3,
@@ -172,5 +163,6 @@ DLLEXPORT u32 __stdcall dotemuRegQueryValueExA(u32 a0, const char* valueName, u3
         return 0;
     }
 
-    return g_originalExports.dotemuRegQueryValueExA(a0, valueName, a2, a3, data, dataSize);
+    auto function = reinterpret_cast<fn_dotemuRegQueryValueExA>(g_originalDll.GetExport(__func__));
+    return function(a0, valueName, a2, a3, data, dataSize);
 }

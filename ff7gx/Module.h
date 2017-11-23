@@ -25,6 +25,8 @@ public:
         return reinterpret_cast<T>(base + offset);
     }
 
+    void* GetExport(const char* name);
+
     const void* HookImport(const char* libName, const char* funcName, const void* newFunction);
 
     void Patch(u32 offset, const void* data, u32 length);

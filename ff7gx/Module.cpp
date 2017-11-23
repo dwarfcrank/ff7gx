@@ -97,6 +97,11 @@ void** Module::FindImport(const char* targetLib, const char* targetFunc)
     return nullptr;
 }
 
+void* Module::GetExport(const char* name)
+{
+    return GetProcAddress(m_module, name);
+}
+
 const void* Module::HookImport(const char* targetLib, const char* targetFunc, const void* newFunction)
 {
     _ASSERTE(m_module);
