@@ -24,16 +24,7 @@ namespace
     class ScopedD3DEvent
     {
     public:
-        ScopedD3DEvent()
-        {
-        }
-
-        ~ScopedD3DEvent()
-        {
-            D3DPERF_EndEvent();
-        }
-
-        static ScopedD3DEvent Begin(const WCHAR* format, ...)
+        ScopedD3DEvent(const WCHAR* format, ...)
         {
             WCHAR buf[128];
 
@@ -43,8 +34,11 @@ namespace
             va_end(args);
 
             D3DPERF_BeginEvent(0, buf);
+        }
 
-            return ScopedD3DEvent();
+        ~ScopedD3DEvent()
+        {
+            D3DPERF_EndEvent();
         }
     };
 }
@@ -147,7 +141,7 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
 
 void Renderer::DrawTiles(void* a0, void* a1)
 {
-    auto _ = ScopedD3DEvent::Begin(L"DrawTiles_hook(%p, %p)", a0, a1);
+    ScopedD3DEvent _(L"DrawTiles_hook(0x%p, 0x%p)", a0, a1);
 
     m_stateBlock->Capture();
 
@@ -194,7 +188,7 @@ void Renderer::SetShaderTextureFlag(bool value)
 
 u32 Renderer::EndFrame(u32 a0)
 {
-    auto _ = ScopedD3DEvent::Begin(L"EndFrame_hook(%p)", a0);
+    ScopedD3DEvent _(L"EndFrame_hook(0x%p)", a0);
 
     float width, height;
     m_internals.GetRenderDimensions(&width, &height);
