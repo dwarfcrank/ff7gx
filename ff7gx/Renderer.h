@@ -46,6 +46,9 @@ private:
     // Sets the flag used by Draw() to determine whether to enable linear filtering or not.
     void SetTextureFilteringFlag(bool value);
 
+    void InitViewport();
+    void InitProjectionMatrix();
+
     ShutdownCallback m_shutdownCallback;
 
     // Game internals
@@ -64,5 +67,9 @@ private:
     ComPtr<IDirect3DTexture9> m_renderTargetTexture;
     ComPtr<IDirect3DSurface9> m_renderTargetSurface;
     ComPtr<IDirect3DSurface9> m_backbuffer;
+    ComPtr<IDirect3DStateBlock9> m_stateBlock;
+
+    D3DMATRIX m_projectionMatrix;
+    D3DVIEWPORT9 m_viewport;
 };
 

@@ -103,6 +103,24 @@ u32 Renderer::Shutdown(u32 a0)
     return ret;
 }
 
+void Renderer::InitViewport()
+{
+    // The game sets the viewport min and max Z to 0.0f and 1.0f
+    m_viewport.X = 0;
+    m_viewport.Y = 0;
+    m_viewport.Width = 320;
+    m_viewport.Height = 240;
+    m_viewport.MinZ = 0.0f;
+    m_viewport.MaxZ = 1.0f;
+}
+
+void Renderer::InitProjectionMatrix()
+{
+    // Take the D3D9 pixel center offset into account when computing the projection matrix.
+    auto matrix = XMMatrixOrthographicOffCenterLH(0.5f, 320.5f, 240.5, 0.5f, 0.0f, 1.0f);
+    XMStoreFloat4x4(reinterpret_cast<XMFLOAT4X4*>(&m_projectionMatrix), matrix);
+}
+
 Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback) :
     m_originalDll(module),
     m_shutdownCallback(shutdownCallback)
@@ -124,6 +142,11 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
     VERIFY(m_renderTargetTexture->GetSurfaceLevel(0, &m_renderTargetSurface));
     SetD3DResourceName(m_renderTargetSurface.Get(), "RenderTargetSurface");
 
+    VERIFY(m_d3dDevice->CreateStateBlock(D3DSBT_ALL, &m_stateBlock));
+
+    InitViewport();
+    InitProjectionMatrix();
+
     context->DrawTiles = &MethodWrapper<void, void*, void*>::Func<&Renderer::DrawTiles>;
     context->EndFrame = &MethodWrapper<u32, u32>::Func<&Renderer::EndFrame>;
     context->Shutdown = Shutdown;
@@ -142,41 +165,22 @@ void Renderer::DrawTiles(void* a0, void* a1)
 {
     auto _ = ScopedD3DEvent::Begin(L"DrawTiles_hook(%p, %p)", a0, a1);
 
-    // Take the D3D9 pixel center offset into account when computing the projection matrix.
-    // TODO: Compute this once and save it.
-    auto matrix = XMMatrixOrthographicOffCenterLH(0.5f, 320.5f, 240.5, 0.5f, 0.0f, 1.0f);
-    XMFLOAT4X4 temp;
-    XMStoreFloat4x4(&temp, matrix);
+    m_stateBlock->Capture();
 
-    D3DMATRIX oldMatrix;
-    m_d3dDevice->GetTransform(D3DTS_PROJECTION, &oldMatrix);
-    m_d3dDevice->SetTransform(D3DTS_PROJECTION, reinterpret_cast<const D3DMATRIX*>(&temp));
-
-    D3DVIEWPORT9 viewport, oldViewport;
-    m_d3dDevice->GetViewport(&oldViewport);
-
-    viewport.X = 0;
-    viewport.Y = 0;
-    viewport.Width = 320;
-    viewport.Height = 240;
-    viewport.MinZ = oldViewport.MinZ;
-    viewport.MaxZ = oldViewport.MaxZ;
-
-    m_d3dDevice->SetViewport(&viewport);
+    m_d3dDevice->SetTransform(D3DTS_PROJECTION, &m_projectionMatrix);
+    m_d3dDevice->SetViewport(&m_viewport);
 
     m_d3dDevice->SetRenderTarget(0, m_renderTargetSurface.Get());
 
     // Depth writes have to be disabled to avoid interfering with other drawing done by the game
-    // TODO: Maybe use a state block to save all state?
     m_d3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
 
     m_originalContext.DrawTiles(a0, a1);
 
-    m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
-    m_d3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+    m_stateBlock->Apply();
 
-    m_d3dDevice->SetViewport(&oldViewport);
-    m_d3dDevice->SetTransform(D3DTS_PROJECTION, &oldMatrix);
+    // The render target is not saved with the state block, so restore it separately
+    m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
 }
 
 void Renderer::DrawHook(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vertex* vertices,
