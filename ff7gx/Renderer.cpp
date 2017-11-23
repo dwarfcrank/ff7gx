@@ -136,11 +136,11 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
 
     // The backgrounds are drawn at ~320x240
     VERIFY(m_d3dDevice->CreateTexture(320, 240, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
-        D3DPOOL_DEFAULT, &m_renderTargetTexture, nullptr));
-    SetD3DResourceName(m_renderTargetTexture.Get(), "RenderTargetTexture");
+        D3DPOOL_DEFAULT, &m_backgroundTexture, nullptr));
+    SetD3DResourceName(m_backgroundTexture.Get(), "BackgroundTexture");
 
-    VERIFY(m_renderTargetTexture->GetSurfaceLevel(0, &m_renderTargetSurface));
-    SetD3DResourceName(m_renderTargetSurface.Get(), "RenderTargetSurface");
+    VERIFY(m_backgroundTexture->GetSurfaceLevel(0, &m_backgroundRenderTarget));
+    SetD3DResourceName(m_backgroundRenderTarget.Get(), "BackgroundRenderTarget");
 
     VERIFY(m_d3dDevice->CreateStateBlock(D3DSBT_ALL, &m_stateBlock));
 
@@ -170,7 +170,7 @@ void Renderer::DrawTiles(void* a0, void* a1)
     m_d3dDevice->SetTransform(D3DTS_PROJECTION, &m_projectionMatrix);
     m_d3dDevice->SetViewport(&m_viewport);
 
-    m_d3dDevice->SetRenderTarget(0, m_renderTargetSurface.Get());
+    m_d3dDevice->SetRenderTarget(0, m_backgroundRenderTarget.Get());
 
     // Depth writes have to be disabled to avoid interfering with other drawing done by the game
     m_d3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
@@ -248,7 +248,7 @@ u32 Renderer::EndFrame(u32 a0)
         } };
 
     m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
-    m_d3dDevice->SetTexture(0, m_renderTargetTexture.Get());
+    m_d3dDevice->SetTexture(0, m_backgroundTexture.Get());
 
     SetTextureFilteringFlag(true);
     SetTextureFlag(true);
@@ -262,7 +262,7 @@ u32 Renderer::EndFrame(u32 a0)
 
 u32 Renderer::Clear(u32 clearRenderTarget, u32 clearDepthBuffer)
 {
-    m_d3dDevice->SetRenderTarget(0, m_renderTargetSurface.Get());
+    m_d3dDevice->SetRenderTarget(0, m_backgroundRenderTarget.Get());
     m_originalContext.Clear(clearRenderTarget, clearDepthBuffer);
     m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
 

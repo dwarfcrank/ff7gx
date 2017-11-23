@@ -64,8 +64,8 @@ private:
     using ComPtr = Microsoft::WRL::ComPtr<T>;
 
     ComPtr<IDirect3DDevice9> m_d3dDevice;
-    ComPtr<IDirect3DTexture9> m_renderTargetTexture;
-    ComPtr<IDirect3DSurface9> m_renderTargetSurface;
+    ComPtr<IDirect3DTexture9> m_backgroundTexture;
+    ComPtr<IDirect3DSurface9> m_backgroundRenderTarget;
     ComPtr<IDirect3DSurface9> m_backbuffer;
     ComPtr<IDirect3DStateBlock9> m_stateBlock;
 
