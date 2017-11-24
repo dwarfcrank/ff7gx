@@ -74,6 +74,7 @@ u32 Renderer::Shutdown(u32 a0)
     auto shutdownCallback = instance->m_shutdownCallback;
 
     delete instance;
+    FF7::GetGfxContext()->rendererInstance = nullptr;
 
     if (shutdownCallback) {
         shutdownCallback();
