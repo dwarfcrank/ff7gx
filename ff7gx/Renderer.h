@@ -24,6 +24,9 @@ public:
     void DrawHook(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vertex* vertices,
         u32 vertexBufferSize, const u16* indices, u32 vertexCount, u32 a7, u32 scissor);
 
+    void GfxFn_84(u32 drawMode, FF7::GameContext* context);
+    u32 GfxFn_88(u32 drawMode, FF7::GameContext* context);
+
     // This needs to be static as it deletes the entire renderer instance
     static u32 __cdecl Shutdown(u32 a0);
 
@@ -31,6 +34,14 @@ public:
     Renderer(Renderer&&) = delete;
 
 private:
+    // DrawMode is used to determine what part of the scene the game is currently drawing.
+    // This affects z-buffering and blending among others.
+    enum DrawMode
+    {
+        Background, // Draw to a separate texture and upscale later
+        Dialog      // Draw directly to back buffer
+    };
+
     // Sets the flag used by the pixel shader to determine whether to sample from a texture.
     void SetShaderTextureFlag(bool value);
 
@@ -41,6 +52,9 @@ private:
     void InitProjectionMatrix();
 
     ShutdownCallback m_shutdownCallback;
+
+    // Drawing state
+    DrawMode m_drawMode;
 
     // Game internals
     class Module& m_originalDll;

@@ -104,7 +104,8 @@ void Renderer::InitProjectionMatrix()
 Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback) :
     m_originalDll(module),
     m_internals(module),
-    m_shutdownCallback(shutdownCallback)
+    m_shutdownCallback(shutdownCallback),
+    m_drawMode(DrawMode::Dialog)
 {
     std::memcpy(&m_originalContext, context, sizeof(FF7::GfxContext));
 
@@ -133,6 +134,8 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
     context->Shutdown = Shutdown;
     context->Clear = &MethodWrapper<u32, u32, u32>::Func<&Renderer::Clear>;
     context->ClearAll = &MethodWrapper<u32>::Func<&Renderer::ClearAll>;
+    context->GfxFn_84 = &MethodWrapper<void, u32, FF7::GameContext*>::Func<&Renderer::GfxFn_84>;
+    context->GfxFn_88 = &MethodWrapper<u32, u32, FF7::GameContext*>::Func<&Renderer::GfxFn_88>;
 
     // Patch DrawTilesImpl to call DrawHook to transform vertices before drawing them
     auto drawHook =
@@ -142,6 +145,12 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
 
 void Renderer::DrawTiles(void* a0, void* a1)
 {
+    if (m_drawMode != DrawMode::Background) {
+        // Not drawing background tiles, just draw normally.
+        m_originalContext.DrawTiles(a0, a1);
+        return;
+    }
+
     ScopedD3DEvent _(L"DrawTiles_hook(0x%p, 0x%p)", a0, a1);
 
     m_stateBlock->Capture();
@@ -165,6 +174,12 @@ void Renderer::DrawTiles(void* a0, void* a1)
 void Renderer::DrawHook(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vertex* vertices,
     u32 vertexBufferSize, const u16* indices, u32 vertexCount, u32 a7, u32 scissor)
 {
+    if (m_drawMode != DrawMode::Background) {
+        // Not drawing background tiles, just draw normally.
+        m_internals.Draw(primType, drawType, vertices, vertexBufferSize, indices, vertexCount, a7, scissor);
+        return;
+    }
+
     std::vector<FF7::Vertex> transformed(vertexBufferSize);
 
     // The original vertices are generated for a 640x480 render target, so they
@@ -177,6 +192,39 @@ void Renderer::DrawHook(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vert
     }
 
     m_internals.Draw(primType, drawType, transformed.data(), vertexBufferSize, indices, vertexCount, a7, scissor);
+}
+
+void Renderer::GfxFn_84(u32 drawMode, FF7::GameContext* context)
+{
+    auto gameMode = m_internals.GetGameState()->mode;
+
+    if (gameMode == FF7::GameMode::Field) {
+        if (drawMode == 1) {
+            m_drawMode = DrawMode::Dialog;
+        }
+    } else {
+        // At least in main menu dialogs are drawn with drawMode = 0
+        if (drawMode == 0) {
+            m_drawMode = DrawMode::Dialog;
+        }
+    }
+
+    m_originalContext.GfxFn_84(drawMode, context);
+}
+
+u32 Renderer::GfxFn_88(u32 drawMode, FF7::GameContext* context)
+{
+    auto ret = m_originalContext.GfxFn_88(drawMode, context);
+
+    if (ret) {
+        if (drawMode == 0) {
+            m_drawMode = DrawMode::Background;
+        } else if (drawMode == 1) {
+            m_drawMode = DrawMode::Dialog;
+        }
+    }
+
+    return ret;
 }
 
 void Renderer::SetShaderTextureFlag(bool value)

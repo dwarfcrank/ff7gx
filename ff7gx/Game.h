@@ -34,11 +34,17 @@ namespace FF7
     // TODO: Fill in the huge context struct.
     struct GameContext;
 
+    enum GameMode
+    {
+        Field = 0,
+        MainMenu = 3
+    };
+
     struct GameState
     {
         u32 index;
         const char* name;
-        u32 id;
+        u32 mode;
         u32 unknown;
         u32 (__cdecl *FuncPtr)(GameContext*);
     };
@@ -90,8 +96,8 @@ namespace FF7
         /* 0x84 */ u32 (__cdecl *GfxFn_78)(u32 a0, u32 a1);
         /* 0x7C */ u32 (__cdecl *GfxFn_7C)(u32 a0, u32 a1);
         /* 0x80 */ u32 (__cdecl *GfxFn_80)(u32 a0, u32 a1);;
-        /* 0x84 */ u32 (__cdecl *GfxFn_84)(u32 a0, u32 a1);
-        /* 0x88 */ u32 (__cdecl *GfxFn_88)(u32 a0, u32 a1);
+        /* 0x84 */ void (__cdecl *GfxFn_84)(u32 drawMode, GameContext* context);
+        /* 0x88 */ u32 (__cdecl *GfxFn_88)(u32 drawMode, GameContext* context);
         /* 0x8C */ u32 (__cdecl *ResetState)(u32 a0);
         /* 0x90 */ u32 dword90;
         /* 0x94 */ u32 dword94;
