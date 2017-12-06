@@ -55,6 +55,16 @@ namespace FF7
         *m_module.OffsetToPtr<u32*>(Offsets::TextureFilteringFlag) = value;
     }
 
+    IDirect3DVertexShader9* GameInternals::GetTlmainVS()
+    {
+        return *m_module.OffsetToPtr<IDirect3DVertexShader9**>(Offsets::TlMainVS);
+    }
+
+    void GameInternals::SetTlmainVS(IDirect3DVertexShader9* vs)
+    {
+        *m_module.OffsetToPtr<IDirect3DVertexShader9**>(Offsets::TlMainVS) = vs;
+    }
+
     void GameInternals::Draw(D3DPRIMITIVETYPE primType, u32 drawType, const Vertex* vertices, u32 vertexBufferSize,
         const u16* indices, u32 vertexCount, u32 a7, u32 scissor)
     {

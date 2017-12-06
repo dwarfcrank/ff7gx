@@ -7,6 +7,7 @@
 #include <memory>
 #include <Windows.h>
 #include <wrl.h>
+#include <unordered_set>
 
 class Renderer
 {
@@ -51,10 +52,13 @@ private:
     void InitViewport();
     void InitProjectionMatrix();
 
+    void DrawLayers();
+
     ShutdownCallback m_shutdownCallback;
 
     // Drawing state
     DrawMode m_drawMode;
+    std::unordered_set<int> m_layerDepths;
 
     // Game internals
     class Module& m_originalDll;
@@ -70,6 +74,10 @@ private:
     ComPtr<IDirect3DSurface9> m_backgroundRenderTarget;
     ComPtr<IDirect3DSurface9> m_backbuffer;
     ComPtr<IDirect3DStateBlock9> m_stateBlock;
+
+    ComPtr<IDirect3DPixelShader9> m_backgroundLayerPS;
+    ComPtr<IDirect3DPixelShader9> m_backgroundPS;
+    ComPtr<IDirect3DVertexShader9> m_backgroundVS;
 
     D3DMATRIX m_projectionMatrix;
     D3DVIEWPORT9 m_viewport;

@@ -23,6 +23,8 @@ namespace FF7
         const u32 DrawFunction = 0xb6a0;
         const u32 GetGameState = 0x1330;
         const u32 DebugOverlayFlag = 0x2bc80;
+
+        const u32 TlMainVS = 0x2d180;
     }
 
     enum DrawType : u32
@@ -146,6 +148,9 @@ namespace FF7
         void SetDebugLogFlag(u32 value);
         void SetDebugOverlayFlag(u32 value);
         void SetTextureFilteringFlag(u32 value);
+
+        IDirect3DVertexShader9* GetTlmainVS();
+        void SetTlmainVS(IDirect3DVertexShader9* vs);
 
     private:
         Module& m_module;

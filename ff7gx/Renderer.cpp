@@ -12,6 +12,12 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <algorithm>
+#include <cmath>
+
+#include "Generated/Background_PS.h"
+#include "Generated/BackgroundLayer_PS.h"
+#include "Generated/Background_VS.h"
 
 #define VERIFY(hr) assert(SUCCEEDED((hr)))
 
@@ -101,6 +107,69 @@ void Renderer::InitProjectionMatrix()
     XMStoreFloat4x4(reinterpret_cast<XMFLOAT4X4*>(&m_projectionMatrix), matrix);
 }
 
+void Renderer::DrawLayers()
+{
+    m_stateBlock->Capture();
+
+    const std::array<u16, 6> indices{ {
+            3, 0, 2, 0, 1, 2
+        } };
+
+    float width, height;
+    m_internals.GetRenderDimensions(&width, &height);
+    width /= 2.0f;
+    height /= 2.0f;
+
+    std::vector<int> layers(m_layerDepths.cbegin(), m_layerDepths.cend());
+    std::sort(layers.begin(), layers.end());
+
+    auto oldVS = m_internals.GetTlmainVS();
+    m_internals.SetTlmainVS(m_backgroundVS.Get());
+
+    m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
+    m_d3dDevice->SetTexture(0, m_backgroundTexture.Get());
+    m_d3dDevice->SetTexture(1, m_backgroundTexture.Get());
+    m_d3dDevice->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+    m_d3dDevice->SetPixelShader(m_backgroundLayerPS.Get());
+    m_internals.SetTextureFilteringFlag(1);
+    m_d3dDevice->SetRenderState(D3DRS_ZENABLE, TRUE);
+    m_d3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+
+    for (auto it = layers.crbegin(); it != layers.crend(); it++) {
+        const float depth = static_cast<float>(*it / 255.0f);
+
+        const std::array<FF7::Vertex, 4> vertices{ {
+            {
+                width, 0.0f, depth, 1.0f,    // x, y, z, w
+                0xffffffff, 0.0f,           // color, unknown,
+                1.0f, 0.0f                  // u, v
+            },
+            {
+                width, height, depth, 1.0f,  // x, y, z, w
+                0xffffffff, 0.0f,           // color, unknown,
+                1.0f, 1.0f                  // u, v
+            },
+            {
+                0.0f, height, depth, 1.0f,   // x, y, z, w
+                0xffffffff, 0.0f,           // color, unknown,
+                0.0f, 1.0f                  // u, v
+            },
+            {
+                0.0f, 0.0f, depth, 1.0f,     // x, y, z, w
+                0xffffffff, 0.0f,           // color, unknown,
+                0.0f, 0.0f                  // u, v
+            }
+            } };
+
+        float psConstant[4] = { std::roundf(static_cast<float>(*it)), 0.0f, 0.0f, 0.0f };
+        m_d3dDevice->SetPixelShaderConstantF(0, psConstant, 1);
+        m_internals.Draw(D3DPT_TRIANGLELIST, FF7::DrawType::Ortho, vertices.data(), vertices.size(), indices.data(), indices.size(), 0, 0);
+    }
+
+    m_internals.SetTlmainVS(oldVS);
+    m_stateBlock->Apply();
+}
+
 Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback) :
     m_originalDll(module),
     m_internals(module),
@@ -125,6 +194,10 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
     SetD3DResourceName(m_backgroundRenderTarget.Get(), "BackgroundRenderTarget");
 
     VERIFY(m_d3dDevice->CreateStateBlock(D3DSBT_ALL, &m_stateBlock));
+
+    VERIFY(m_d3dDevice->CreatePixelShader(reinterpret_cast<const DWORD*>(Background_PS), &m_backgroundPS));
+    VERIFY(m_d3dDevice->CreatePixelShader(reinterpret_cast<const DWORD*>(BackgroundLayer_PS), &m_backgroundLayerPS));
+    VERIFY(m_d3dDevice->CreateVertexShader(reinterpret_cast<const DWORD*>(Background_VS), &m_backgroundVS));
 
     InitViewport();
     InitProjectionMatrix();
@@ -159,11 +232,18 @@ void Renderer::DrawTiles(void* a0, void* a1)
     m_d3dDevice->SetViewport(&m_viewport);
 
     m_d3dDevice->SetRenderTarget(0, m_backgroundRenderTarget.Get());
+    m_d3dDevice->SetPixelShader(m_backgroundPS.Get());
 
     // Depth writes have to be disabled to avoid interfering with other drawing done by the game
     m_d3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    m_d3dDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 
+    // Draw() is stupid and sets the vertex shader on every call, so we need to swap out the original
+    // object OR rewrite the function.
+    auto oldVS = m_internals.GetTlmainVS();
+    m_internals.SetTlmainVS(m_backgroundVS.Get());
     m_originalContext.DrawTiles(a0, a1);
+    m_internals.SetTlmainVS(oldVS);
 
     m_stateBlock->Apply();
 
@@ -189,6 +269,8 @@ void Renderer::DrawHook(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vert
         transformed[i] = vertices[i];
         transformed[i].x *= 0.5f;
         transformed[i].y *= 0.5f;
+
+        m_layerDepths.insert(static_cast<int>(std::ceilf(transformed[i].z * 255.0f)));
     }
 
     m_internals.Draw(primType, drawType, transformed.data(), vertexBufferSize, indices, vertexCount, a7, scissor);
@@ -244,42 +326,9 @@ u32 Renderer::EndFrame(u32 a0)
     width /= 2.0f;
     height /= 2.0f;
 
-    const std::array<u16, 6> indices{ {
-            3, 0, 2, 0, 1, 2
-        } };
+    DrawLayers();
 
-    const std::array<FF7::Vertex, 4> vertices{ {
-        {
-            width, 0.0f, 1.0f, 1.0f,    // x, y, z, w
-            0xffffffff, 0.0f,           // color, unknown,
-            1.0f, 0.0f                  // u, v
-        },
-        {
-            width, height, 1.0f, 1.0f,  // x, y, z, w
-            0xffffffff, 0.0f,           // color, unknown,
-            1.0f, 1.0f                  // u, v
-        },
-        {
-            0.0f, height, 1.0f, 1.0f,   // x, y, z, w
-            0xffffffff, 0.0f,           // color, unknown,
-            0.0f, 1.0f                  // u, v
-        },
-        {
-            0.0f, 0.0f, 1.0f, 1.0f,     // x, y, z, w
-            0xffffffff, 0.0f,           // color, unknown,
-            0.0f, 0.0f                  // u, v
-        }
-        } };
-
-    m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
-    m_d3dDevice->SetTexture(0, m_backgroundTexture.Get());
-
-    m_internals.SetTextureFilteringFlag(1);
-    SetShaderTextureFlag(true);
-
-    m_d3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
-    m_internals.Draw(D3DPT_TRIANGLELIST, FF7::DrawType::Ortho, vertices.data(), vertices.size(), indices.data(), indices.size(), 0, 0);
-    m_d3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+    m_layerDepths.clear();
 
     return m_originalContext.EndFrame(a0);
 }

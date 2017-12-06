@@ -71,6 +71,9 @@
     <None Include="Shaders\super-xbr-params.inc">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\background.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\super-xbr-pass0.vertex.hlsl">
@@ -83,6 +86,15 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\super-xbr-pass1.vertex.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\background.pixel.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\background.vertex.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\backgroundlayer.pixel.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
