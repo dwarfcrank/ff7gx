@@ -25,12 +25,6 @@ function beginEvent(name, numArgs, args, returnAddr) {
         s += "0x" + args[i].toString(16);
     }
 
-    if (returnAddr.compare(ffviiDllBase) > 0) {
-        s += ") (return to af3dn+0x" + returnAddr.sub(ffviiDllBase).toString(16) + ")";
-    } else {
-        s += ") (return to 0x" + returnAddr.toString(16) + ")";
-    }
-
     let buf = Memory.allocUtf16String(s);
     D3DPERF_BeginEvent(0, buf);
 }
