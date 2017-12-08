@@ -31,10 +31,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 
 namespace FF7
 {
-    struct GfxContext;
+    struct GfxFunctions;
 }
 
-using fn_new_dll_graphics_driver = struct FF7::GfxContext* (__cdecl *)(u32);
+using fn_new_dll_graphics_driver = FF7::GfxFunctions* (__cdecl *)(u32);
 using fn_dotemuRegOpenKeyExA = u32 (__stdcall *)(u32, u32, u32, u32, u32);
 using fn_dotemuRegQueryValueExA = u32 (__stdcall *)(u32, const char*, u32, u32, void*, u32*);
 using fn_dotemuRegSetValueExA = u32 (__stdcall *)(u32, u32, u32, u32, u32, u32);
@@ -91,6 +91,16 @@ static void DoInit()
     g_initialized = true;
 }
 
+static u32 __cdecl Shutdown(u32 a0)
+{
+    auto instance = FF7::GetGfxFunctions()->rendererInstance;
+    auto ret = instance->Shutdown(a0);
+
+    delete instance;
+
+    return ret;
+}
+
 void Initialize()
 {
     if (g_initialized) {
@@ -100,30 +110,21 @@ void Initialize()
     DoInit();
 }
 
-DLLEXPORT FF7::GfxContext* __cdecl new_dll_graphics_driver(u32 a0)
+DLLEXPORT FF7::GfxFunctions* __cdecl new_dll_graphics_driver(u32 a0)
 {
     Initialize();
 
     auto function = reinterpret_cast<fn_new_dll_graphics_driver>(g_originalDll.GetExport(__func__));
-    auto context = function(a0);
-    auto renderer = new Renderer(g_originalDll, context, [&]() {
-        if (g_fridaDll) {
-            FreeLibrary(g_fridaDll);
-        }
+    auto functions = function(a0);
+    auto renderer = new Renderer(g_originalDll, functions);
 
-        if (g_apitraceDll) {
-            FreeLibrary(g_apitraceDll);
-        }
-
-        FreeLibrary(g_originalDll.GetHandle());
-    });
-
-    context->rendererInstance = renderer;
+    functions->rendererInstance = renderer;
+    renderer->GetFunctions()->Shutdown = Shutdown;
 
     FF7::GameInternals internals(g_originalDll);
     internals.SetDebugOverlayFlag(1);
 
-    return context;
+    return renderer->GetFunctions();
 }
 
 DLLEXPORT u32 __stdcall dotemuRegCloseKey(u32)

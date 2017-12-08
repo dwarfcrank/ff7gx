@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Game.h"
+#include "GfxContextBase.h"
 
 #include <d3d9.h>
 #include <functional>
@@ -9,27 +10,22 @@
 #include <wrl.h>
 #include <unordered_set>
 
-class Renderer
+class Renderer : public GfxContextBase
 {
 public:
-    using ShutdownCallback = std::function<void()>;
+    Renderer(class Module& module, FF7::GfxFunctions* functions);
 
-    Renderer(class Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback = nullptr);
-
-    u32 EndFrame(u32 a0);
-    u32 Clear(u32 clearRenderTarget, u32 clearDepthBuffer);
-    u32 ClearAll();
-    void DrawTiles(void* a0, void* a1);
+    virtual u32 EndFrame(u32 a0) override;
+    virtual u32 Clear(u32 clearRenderTarget, u32 clearDepthBuffer) override;
+    virtual u32 ClearAll() override;
+    virtual void DrawTiles(void* a0, void* a1) override;
 
     // DrawTilesImpl is patched to call this instead of the original Draw()
     void DrawHook(D3DPRIMITIVETYPE primType, u32 drawType, const FF7::Vertex* vertices,
         u32 vertexBufferSize, const u16* indices, u32 vertexCount, u32 a7, u32 scissor);
 
-    void GfxFn_84(u32 drawMode, FF7::GameContext* context);
-    u32 GfxFn_88(u32 drawMode, FF7::GameContext* context);
-
-    // This needs to be static as it deletes the entire renderer instance
-    static u32 __cdecl Shutdown(u32 a0);
+    virtual void GfxFn_84(u32 drawMode, FF7::GameContext* context) override;
+    virtual u32 GfxFn_88(u32 drawMode, FF7::GameContext* context) override;
 
     Renderer(Renderer&) = delete;
     Renderer(Renderer&&) = delete;
@@ -54,15 +50,12 @@ private:
 
     void DrawLayers();
 
-    ShutdownCallback m_shutdownCallback;
-
     // Drawing state
     DrawMode m_drawMode;
     std::unordered_set<int> m_layerDepths;
 
     // Game internals
     class Module& m_originalDll;
-    FF7::GfxContext m_originalContext;
     FF7::GameInternals m_internals;
 
     // D3D resources

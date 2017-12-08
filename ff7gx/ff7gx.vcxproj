@@ -75,6 +75,7 @@
     <LinkIncremental>true</LinkIncremental>
     <TargetName>AF3DN</TargetName>
     <TargetExt>.P</TargetExt>
+    <CustomBuildBeforeTargets>ClCompile</CustomBuildBeforeTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -101,6 +102,15 @@
       <AdditionalDependencies>dxguid.lib;d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>deffile</ModuleDefinitionFile>
     </Link>
+    <CustomBuildStep>
+      <Command>python $(SolutionDir)/wrappergen.py</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Message>Generating wrappers</Message>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>Generated/GfxFunctions.h;Generated/GfxContextBase.h;Generated/GfxContextBase.cpp;%(Outputs)</Outputs>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -153,6 +163,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="GfxContextBase.h" />
+    <ClInclude Include="ScopedD3DEvent.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Game.h" />
@@ -163,6 +175,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GfxContextBase.cpp" />
     <ClCompile Include="Config.cpp" />
     <ClCompile Include="GameInternals.cpp" />
     <ClCompile Include="Log.cpp" />

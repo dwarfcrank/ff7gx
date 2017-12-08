@@ -3,6 +3,7 @@
 
 #include "Game.h"
 #include "Module.h"
+#include "ScopedD3DEvent.h"
 
 #include <assert.h>
 #include <array>
@@ -23,32 +24,6 @@
 
 using namespace DirectX;
 
-namespace
-{
-    // Helper class to visibly separate different parts of the rendering code
-    // when running in a graphics debugger
-    class ScopedD3DEvent
-    {
-    public:
-        ScopedD3DEvent(const WCHAR* format, ...)
-        {
-            WCHAR buf[128];
-
-            va_list args;
-            va_start(args, format);
-            std::vswprintf(buf, 128, format, args);
-            va_end(args);
-
-            D3DPERF_BeginEvent(0, buf);
-        }
-
-        ~ScopedD3DEvent()
-        {
-            D3DPERF_EndEvent();
-        }
-    };
-}
-
 // Helper templates to make wrapping methods as C functions easier
 template<typename TResult, typename... TArgs>
 using RendererMethodPtr = TResult(Renderer::*)(TArgs...);
@@ -59,7 +34,7 @@ struct MethodWrapper
     template<RendererMethodPtr<TResult, TArgs...> Method>
     static TResult __cdecl Func(TArgs... args)
     {
-        return (FF7::GetGfxContext()->rendererInstance->*Method)(args...);
+        return (static_cast<Renderer*>(FF7::GetGfxFunctions()->rendererInstance)->*Method)(args...);
     }
 };
 
@@ -67,26 +42,6 @@ struct MethodWrapper
 static void SetD3DResourceName(IDirect3DResource9* resource, const char* name)
 {
     resource->SetPrivateData(WKPDID_D3DDebugObjectName, name, strlen(name), 0);
-}
-
-u32 Renderer::Shutdown(u32 a0)
-{
-    // TODO: Decide on shutdown order.
-    // Currently it's original DLL shutdown -> Renderer shutdown -> Shutdown callback, which makes sense
-    // when running with e.g. apitrace which isn't safe to unload before all D3D related stuff is destroyed.
-    auto instance = FF7::GetGfxContext()->rendererInstance;
-    auto origShutdown = instance->m_originalContext.Shutdown;
-    auto ret = origShutdown(a0);
-    auto shutdownCallback = instance->m_shutdownCallback;
-
-    delete instance;
-    FF7::GetGfxContext()->rendererInstance = nullptr;
-
-    if (shutdownCallback) {
-        shutdownCallback();
-    }
-
-    return ret;
 }
 
 void Renderer::InitViewport()
@@ -170,14 +125,12 @@ void Renderer::DrawLayers()
     m_stateBlock->Apply();
 }
 
-Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback shutdownCallback) :
+Renderer::Renderer(Module& module, FF7::GfxFunctions* functions) :
+    GfxContextBase(functions),
     m_originalDll(module),
     m_internals(module),
-    m_shutdownCallback(shutdownCallback),
     m_drawMode(DrawMode::Dialog)
 {
-    std::memcpy(&m_originalContext, context, sizeof(FF7::GfxContext));
-
     m_d3dDevice.Attach(m_internals.GetD3DDevice());
 
     // 3D models etc. are drawn directly to the backbuffer, so save it here to avoid
@@ -202,14 +155,6 @@ Renderer::Renderer(Module& module, FF7::GfxContext* context, ShutdownCallback sh
     InitViewport();
     InitProjectionMatrix();
 
-    context->DrawTiles = &MethodWrapper<void, void*, void*>::Func<&Renderer::DrawTiles>;
-    context->EndFrame = &MethodWrapper<u32, u32>::Func<&Renderer::EndFrame>;
-    context->Shutdown = Shutdown;
-    context->Clear = &MethodWrapper<u32, u32, u32>::Func<&Renderer::Clear>;
-    context->ClearAll = &MethodWrapper<u32>::Func<&Renderer::ClearAll>;
-    context->GfxFn_84 = &MethodWrapper<void, u32, FF7::GameContext*>::Func<&Renderer::GfxFn_84>;
-    context->GfxFn_88 = &MethodWrapper<u32, u32, FF7::GameContext*>::Func<&Renderer::GfxFn_88>;
-
     // Patch DrawTilesImpl to call DrawHook to transform vertices before drawing them
     auto drawHook =
         &MethodWrapper<void, D3DPRIMITIVETYPE, u32, const FF7::Vertex*, u32, const u16*, u32, u32, u32>::Func<&Renderer::DrawHook>;
@@ -220,7 +165,7 @@ void Renderer::DrawTiles(void* a0, void* a1)
 {
     if (m_drawMode != DrawMode::Background) {
         // Not drawing background tiles, just draw normally.
-        m_originalContext.DrawTiles(a0, a1);
+        GfxContextBase::DrawTiles(a0, a1);
         return;
     }
 
@@ -242,7 +187,7 @@ void Renderer::DrawTiles(void* a0, void* a1)
     // object OR rewrite the function.
     auto oldVS = m_internals.GetTlmainVS();
     m_internals.SetTlmainVS(m_backgroundVS.Get());
-    m_originalContext.DrawTiles(a0, a1);
+    GfxContextBase::DrawTiles(a0, a1);
     m_internals.SetTlmainVS(oldVS);
 
     m_stateBlock->Apply();
@@ -291,12 +236,12 @@ void Renderer::GfxFn_84(u32 drawMode, FF7::GameContext* context)
         }
     }
 
-    m_originalContext.GfxFn_84(drawMode, context);
+    GfxContextBase::GfxFn_84(drawMode, context);
 }
 
 u32 Renderer::GfxFn_88(u32 drawMode, FF7::GameContext* context)
 {
-    auto ret = m_originalContext.GfxFn_88(drawMode, context);
+    auto ret = GfxContextBase::GfxFn_88(drawMode, context);
 
     if (ret) {
         if (drawMode == 0) {
@@ -330,16 +275,16 @@ u32 Renderer::EndFrame(u32 a0)
 
     m_layerDepths.clear();
 
-    return m_originalContext.EndFrame(a0);
+    return GfxContextBase::EndFrame(a0);
 }
 
 u32 Renderer::Clear(u32 clearRenderTarget, u32 clearDepthBuffer)
 {
     m_d3dDevice->SetRenderTarget(0, m_backgroundRenderTarget.Get());
-    m_originalContext.Clear(clearRenderTarget, clearDepthBuffer);
+    GfxContextBase::Clear(clearRenderTarget, clearDepthBuffer);
     m_d3dDevice->SetRenderTarget(0, m_backbuffer.Get());
 
-    return m_originalContext.Clear(clearRenderTarget, clearDepthBuffer);
+    return GfxContextBase::Clear(clearRenderTarget, clearDepthBuffer);
 }
 
 u32 Renderer::ClearAll()

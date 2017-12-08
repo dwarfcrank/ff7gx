@@ -9,12 +9,12 @@ namespace FF7
         return *reinterpret_cast<GameContext**>(Offsets::GameContextPtr);
     }
 
-    GfxContext* GetGfxContext()
+    GfxFunctions* GetGfxFunctions()
     {
         auto contextPtr = reinterpret_cast<u32*>(GetGameContext());
 
         // GfxContext* is at GameContext+0x934
-        return reinterpret_cast<GfxContext*>(contextPtr[0x934 / 4]);
+        return reinterpret_cast<GfxFunctions*>(contextPtr[0x934 / 4]);
     }
 
     GameInternals::GameInternals(Module& module) :
