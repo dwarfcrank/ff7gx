@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "config.h"
+#include "Config.h"
 
 #include <windows.h>
 #include <string>

@@ -63,7 +63,7 @@ static void DoInit()
     }
 
     g_originalDll = Module(LoadLibrary("AF3DN2.P"));
-    DebugLog("Loaded original at %p", g_originalDll);
+    DebugLog("Loaded original at %p", g_originalDll.GetHandle());
 
     if (GetConfig().loadApitrace) {
         g_apitraceDll = LoadLibrary(GetConfig().apitracePath.c_str());

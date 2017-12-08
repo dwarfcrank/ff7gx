@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "log.h"
+#include "Log.h"
 #include "Module.h"
 
 #include <array>
@@ -21,10 +21,6 @@ Module::Module(HMODULE module) :
 {
 }
 
-Module::~Module()
-{
-}
-
 void Module::Patch(u32 offset, const void* data, u32 length)
 {
     PatchRaw(OffsetToPtr<u8*>(offset), data, length);
@@ -37,7 +33,7 @@ void Module::PatchJump(u32 offset, const void* func)
     // call <addr> is 5 bytes and the jump target is relative to the next instruction
     ptrdiff_t displacement = reinterpret_cast<const u8*>(func) - (address + 5);
 
-    std::array<u8, 5> buf = { 0xe9, 0x00, 0x00, 0x00, 0x00 };
+    std::array<u8, 5> buf{ { 0xe9, 0x00, 0x00, 0x00, 0x00 } };
     *reinterpret_cast<ptrdiff_t*>(&buf[1]) = displacement;
 
     PatchRaw(address, buf.data(), buf.size());
@@ -50,7 +46,7 @@ void Module::PatchCall(u32 offset, const void* func)
     // call <addr> is 5 bytes and the jump target is relative to the next instruction
     ptrdiff_t displacement = reinterpret_cast<const u8*>(func) - (address + 5);
 
-    std::array<u8, 5> buf = { 0xe8, 0x00, 0x00, 0x00, 0x00 };
+    std::array<u8, 5> buf{ { 0xe8, 0x00, 0x00, 0x00, 0x00 } };
     *reinterpret_cast<ptrdiff_t*>(&buf[1]) = displacement;
 
     PatchRaw(address, buf.data(), buf.size());

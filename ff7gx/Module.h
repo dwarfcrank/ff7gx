@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "Common.h"
 
 #include <Windows.h>
 #include <type_traits>
@@ -9,7 +9,7 @@ class Module
 {
 public:
     Module(HMODULE module = nullptr);
-    ~Module();
+    ~Module() = default;
 
     HMODULE GetHandle()
     {

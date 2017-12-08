@@ -38,6 +38,8 @@ CLASS_DECL_TEMPLATE = """
 class GfxContextBase
 {{
 public:
+    virtual ~GfxContextBase() = default;
+
     GfxContextBase(FF7::GfxFunctions* impl);
     FF7::GfxFunctions* GetFunctions();
 

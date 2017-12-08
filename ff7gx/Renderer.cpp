@@ -127,9 +127,9 @@ void Renderer::DrawLayers()
 
 Renderer::Renderer(Module& module, FF7::GfxFunctions* functions) :
     GfxContextBase(functions),
+    m_drawMode(DrawMode::Dialog),
     m_originalDll(module),
-    m_internals(module),
-    m_drawMode(DrawMode::Dialog)
+    m_internals(module)
 {
     m_d3dDevice.Attach(m_internals.GetD3DDevice());
 
