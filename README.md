@@ -7,6 +7,11 @@ a bunch of glitchy hacks and exploratory coding, so the game will be mostly unpl
 ![Comparison](img/comparison.png)
 
 ## Building
+### Prerequisites
+* Python 2.7 (`python.exe` must be in `PATH`)
+    * Alternatively, you can disable the custom build step in the project settings and run `wrappergen.py` in the `ff7gx/` directory.
+* Visual Studio 2017 with C++ support
+
 The build is tested only on Visual Studio 2017 Community. The build should work out of the box by opening `ff7gx.sln` and
 building the `Debug (x86)` configuration.
 
@@ -15,6 +20,7 @@ building the `Debug (x86)` configuration.
 2. In the FFVII installation directory (usually `<SteamLibrary>/steamapps/common/FINAL FANTASY VII`), rename `AF3DN.P`
 to `AF3DN2.P`.
 3. Copy `AF3DN.P` from the build directory to the FFVII directory.
+    * Another option is to add the build directory to `PATH` and restarting Steam before running the game (good for development).
 4. Run the game.
 
 ## Configuration
